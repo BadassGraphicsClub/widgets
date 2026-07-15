@@ -1,0 +1,32 @@
+<!-- Clock — Paris time (Europe/Paris), HH:MM:SS, single line, weight 500, Notion-native, device-theme aware -->
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; height: 100%; }
+  body { display: flex; align-items: center; }
+  #clock {
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 500;                    /* one weight thicker than Notion body text (400) */
+    line-height: 1.5;
+    color: #373530;                      /* Notion Default text — light */
+    font-variant-numeric: tabular-nums;  /* equal-width digits, no jitter */
+    -webkit-font-smoothing: antialiased;
+    white-space: nowrap;
+  }
+  @media (prefers-color-scheme: dark) {
+    #clock { color: #D4D4D4; }           /* Notion Default text — dark */
+  }
+</style>
+<span id="clock">--:--:--</span>
+<script>
+(function(){
+  var el = document.getElementById("clock");
+  function tick(){
+    var f = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    var p = {}; f.formatToParts(new Date()).forEach(function(x){ p[x.type] = x.value; });
+    var hh = p.hour === "24" ? "00" : p.hour;
+    el.textContent = hh + ":" + p.minute + ":" + p.second;
+    setTimeout(tick, 1000 - (Date.now() % 1000));
+  }
+  tick();
+})();
+</script>
