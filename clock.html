@@ -1,4 +1,6 @@
-<!-- Clock — Paris time (Europe/Paris), HH:MM:SS, centered, weight 500, Notion-native, device-theme aware -->
+<!-- Clock — Paris time (Europe/Paris), HH:MM:SS, centered, weight 500, Notion-native.
+     Theme: ?theme=dark or ?theme=light forces the palette (Notion embeds never expose the app theme
+     to iframes — prefers-color-scheme only sees the OS/browser). No param = device auto-detect. -->
 <style>
   html, body { margin: 0; padding: 0; background: transparent; height: 100%; }
   body { display: flex; align-items: center; justify-content: center; }  /* centered both axes */
@@ -13,12 +15,16 @@
     white-space: nowrap;
   }
   @media (prefers-color-scheme: dark) {
-    #clock { color: #D4D4D4; }           /* Notion Default text — dark */
+    html:not(.light) #clock { color: #D4D4D4; }  /* auto-detect unless ?theme=light pins it */
   }
+  html.dark #clock { color: #D4D4D4; }   /* ?theme=dark — Notion Default text, dark */
+  html.light #clock { color: #373530; }  /* ?theme=light — pinned light */
 </style>
 <span id="clock">--:--:--</span>
 <script>
 (function(){
+  var t = new URLSearchParams(location.search).get("theme");
+  if (t === "dark" || t === "light") document.documentElement.className = t;
   var el = document.getElementById("clock");
   function tick(){
     var f = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
