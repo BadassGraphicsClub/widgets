@@ -1,6 +1,9 @@
 <!-- Clock — Paris time (Europe/Paris), HH:MM:SS, centered, weight 500, Notion-native.
-     Theme: ?theme=dark or ?theme=light forces the palette (Notion embeds never expose the app theme
-     to iframes — prefers-color-scheme only sees the OS/browser). No param = device auto-detect. -->
+     Theme: ?theme=dark|light pins the palette. ?theme=auto goes dark from Paris sunset to
+     sunrise (mirrors macOS Auto appearance, which follows the Night Shift sunset→sunrise
+     schedule) — the in-app answer to Notion embeds never exposing the app theme (verified
+     2026-07-17: the desktop app reports light to every embed, always).
+     No param = device auto-detect (prefers-color-scheme; works only in plain browser tabs). -->
 <style>
   html, body { margin: 0; padding: 0; background: transparent; height: 100%; }
   body { display: flex; align-items: center; justify-content: center; }  /* centered both axes */
@@ -15,18 +18,42 @@
     white-space: nowrap;
   }
   @media (prefers-color-scheme: dark) {
-    html:not(.light) #clock { color: #D4D4D4; }  /* auto-detect unless ?theme=light pins it */
+    html:not(.light) #clock { color: #D4D4D4; }  /* device auto-detect unless a class pins it */
   }
-  html.dark #clock { color: #D4D4D4; }   /* ?theme=dark — Notion Default text, dark */
-  html.light #clock { color: #373530; }  /* ?theme=light — pinned light */
+  html.dark #clock { color: #D4D4D4; }   /* dark — Notion Default text, dark (?theme=dark or auto at night) */
+  html.light #clock { color: #373530; }  /* light — (?theme=light or auto in daytime) */
 </style>
 <span id="clock">--:--:--</span>
 <script>
 (function(){
-  var t = new URLSearchParams(location.search).get("theme");
-  if (t === "dark" || t === "light") document.documentElement.className = t;
+  var mode = new URLSearchParams(location.search).get("theme");
+  if (mode === "dark" || mode === "light") document.documentElement.className = mode;
+
+  // ?theme=auto — dark from Paris sunset to sunrise, like macOS Auto appearance.
+  // Standard sunrise equation (NOAA/Wikipedia), accuracy ±2 min. Paris: 48.8566N, 2.3522E.
+  function sunTimes(ms, lat, lng){
+    var rad = Math.PI/180, J2000 = 2451545, Jd = ms/86400000 + 2440587.5;
+    var n = Math.round(Jd - J2000 - 0.0009 + lng/360);
+    var Js = J2000 + 0.0009 - lng/360 + n;                       /* mean solar noon */
+    var M = ((357.5291 + 0.98560028*(Js - J2000)) % 360 + 360) % 360;
+    var C = 1.9148*Math.sin(M*rad) + 0.02*Math.sin(2*M*rad) + 0.0003*Math.sin(3*M*rad);
+    var L = (M + C + 180 + 102.9372) % 360;                      /* ecliptic longitude */
+    var Jt = Js + 0.0053*Math.sin(M*rad) - 0.0069*Math.sin(2*L*rad);
+    var dec = Math.asin(Math.sin(L*rad)*Math.sin(23.4397*rad));  /* solar declination */
+    var cosH = (Math.sin(-0.833*rad) - Math.sin(lat*rad)*Math.sin(dec)) / (Math.cos(lat*rad)*Math.cos(dec));
+    if (cosH < -1 || cosH > 1) return null;                      /* polar edge — not Paris */
+    var H = Math.acos(cosH)/rad/360;                             /* hour angle, in day fraction */
+    return { rise: (Jt - H - 2440587.5)*86400000, set: (Jt + H - 2440587.5)*86400000 };
+  }
+  function applyAuto(){
+    var now = Date.now(), t = sunTimes(now, 48.8566, 2.3522);
+    var cls = (!t || now < t.rise || now >= t.set) ? "dark" : "light";
+    if (document.documentElement.className !== cls) document.documentElement.className = cls;
+  }
+
   var el = document.getElementById("clock");
   function tick(){
+    if (mode === "auto") applyAuto();
     var f = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
     var p = {}; f.formatToParts(new Date()).forEach(function(x){ p[x.type] = x.value; });
     var hh = p.hour === "24" ? "00" : p.hour;
